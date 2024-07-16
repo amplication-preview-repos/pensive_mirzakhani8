@@ -1,0 +1,84 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model DiagnosticCenter {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  name           String?
+  location       String?
+  licenseNumber  String?
+  managerDetails String?
+  services       String?
+  testResults    TestResult[]
+  appointments   Appointment[]
+}
+
+model Appointment {
+  id                 String                 @id @default(cuid())
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  service            String?
+  appointmentDate    DateTime?
+  status             EnumAppointmentStatus?
+  payments           Payment[]
+  user               User?                  @relation(fields: [userId], references: [id])
+  userId             String?
+  diagnosticCenter   DiagnosticCenter?      @relation(fields: [diagnosticCenterId], references: [id])
+  diagnosticCenterId String?
+}
+
+model TestResult {
+  id                 String            @id @default(cuid())
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  result             String?
+  testName           String?
+  diagnosticCenter   DiagnosticCenter? @relation(fields: [diagnosticCenterId], references: [id])
+  diagnosticCenterId String?
+  publishedDate      DateTime?
+  user               User?             @relation(fields: [userId], references: [id])
+  userId             String?
+}
+
+model Payment {
+  id            String             @id @default(cuid())
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  amount        Float?
+  paymentDate   DateTime?
+  status        EnumPaymentStatus?
+  user          User?              @relation(fields: [userId], references: [id])
+  userId        String?
+  appointment   Appointment?       @relation(fields: [appointmentId], references: [id])
+  appointmentId String?
+}
+
+model User {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  firstName    String?
+  lastName     String?
+  username     String        @unique
+  email        String?       @unique
+  password     String
+  roles        Json
+  payments     Payment[]
+  appointments Appointment[]
+  testResults  TestResult[]
+}
+
+enum EnumAppointmentStatus {
+  Option1
+}
+
+enum EnumPaymentStatus {
+  Option1
+}
