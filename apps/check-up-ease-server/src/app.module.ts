@@ -1,4 +1,18 @@
 import { Module } from "@nestjs/common";
+
+import {
+  OpenTelemetryModule,
+  PipeInjector,
+  ControllerInjector,
+  EventEmitterInjector,
+  GraphQLResolverInjector,
+  GuardInjector,
+} from "@amplication/opentelemetry-nestjs";
+
+import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-node";
+import { RedisModule } from "./redis/redis.module";
 import { DiagnosticCenterModule } from "./diagnosticCenter/diagnosticCenter.module";
 import { AppointmentModule } from "./appointment/appointment.module";
 import { TestResultModule } from "./testResult/testResult.module";
@@ -7,15 +21,22 @@ import { UserModule } from "./user/user.module";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { SecretsManagerModule } from "./providers/secrets/secretsManager.module";
+import { KafkaModule } from "./redis/kafka.module";
 import { ServeStaticModule } from "@nestjs/serve-static";
 import { ServeStaticOptionsService } from "./serveStaticOptions.service";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { GraphQLModule } from "@nestjs/graphql";
 import { ApolloDriver, ApolloDriverConfig } from "@nestjs/apollo";
 
+import { ACLModule } from "./auth/acl.module";
+import { AuthModule } from "./auth/auth.module";
+
 @Module({
   controllers: [],
   imports: [
+    ACLModule,
+    AuthModule,
+    KafkaModule,
     DiagnosticCenterModule,
     AppointmentModule,
     TestResultModule,
@@ -43,6 +64,27 @@ import { ApolloDriver, ApolloDriverConfig } from "@nestjs/apollo";
       inject: [ConfigService],
       imports: [ConfigModule],
     }),
+    OpenTelemetryModule.forRoot({
+      serviceName: "CheckUpEase",
+      spanProcessor: new BatchSpanProcessor(new OTLPTraceExporter()),
+      instrumentations: [
+        new HttpInstrumentation({
+          requestHook: (span, request) => {
+            if (request.method)
+              span.setAttribute("http.method", request.method);
+          },
+        }),
+      ],
+
+      traceAutoInjectors: [
+        ControllerInjector,
+        EventEmitterInjector,
+        GraphQLResolverInjector,
+        GuardInjector,
+        PipeInjector,
+      ],
+    }),
+    RedisModule,
   ],
   providers: [],
 })

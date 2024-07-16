@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { DiagnosticCenterService } from "../diagnosticCenter.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { DiagnosticCenterCreateInput } from "./DiagnosticCenterCreateInput";
 import { DiagnosticCenter } from "./DiagnosticCenter";
 import { DiagnosticCenterFindManyArgs } from "./DiagnosticCenterFindManyArgs";
@@ -29,10 +33,24 @@ import { AppointmentFindManyArgs } from "../../appointment/base/AppointmentFindM
 import { Appointment } from "../../appointment/base/Appointment";
 import { AppointmentWhereUniqueInput } from "../../appointment/base/AppointmentWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class DiagnosticCenterControllerBase {
-  constructor(protected readonly service: DiagnosticCenterService) {}
+  constructor(
+    protected readonly service: DiagnosticCenterService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: DiagnosticCenter })
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createDiagnosticCenter(
     @common.Body() data: DiagnosticCenterCreateInput
   ): Promise<DiagnosticCenter> {
@@ -51,9 +69,18 @@ export class DiagnosticCenterControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [DiagnosticCenter] })
   @ApiNestedQuery(DiagnosticCenterFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async diagnosticCenters(
     @common.Req() request: Request
   ): Promise<DiagnosticCenter[]> {
@@ -73,9 +100,18 @@ export class DiagnosticCenterControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: DiagnosticCenter })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async diagnosticCenter(
     @common.Param() params: DiagnosticCenterWhereUniqueInput
   ): Promise<DiagnosticCenter | null> {
@@ -100,9 +136,18 @@ export class DiagnosticCenterControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: DiagnosticCenter })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateDiagnosticCenter(
     @common.Param() params: DiagnosticCenterWhereUniqueInput,
     @common.Body() data: DiagnosticCenterUpdateInput
@@ -135,6 +180,14 @@ export class DiagnosticCenterControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: DiagnosticCenter })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteDiagnosticCenter(
     @common.Param() params: DiagnosticCenterWhereUniqueInput
   ): Promise<DiagnosticCenter | null> {
@@ -162,8 +215,14 @@ export class DiagnosticCenterControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/testResults")
   @ApiNestedQuery(TestResultFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "TestResult",
+    action: "read",
+    possession: "any",
+  })
   async findTestResults(
     @common.Req() request: Request,
     @common.Param() params: DiagnosticCenterWhereUniqueInput
@@ -202,6 +261,11 @@ export class DiagnosticCenterControllerBase {
   }
 
   @common.Post("/:id/testResults")
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
   async connectTestResults(
     @common.Param() params: DiagnosticCenterWhereUniqueInput,
     @common.Body() body: TestResultWhereUniqueInput[]
@@ -219,6 +283,11 @@ export class DiagnosticCenterControllerBase {
   }
 
   @common.Patch("/:id/testResults")
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
   async updateTestResults(
     @common.Param() params: DiagnosticCenterWhereUniqueInput,
     @common.Body() body: TestResultWhereUniqueInput[]
@@ -236,6 +305,11 @@ export class DiagnosticCenterControllerBase {
   }
 
   @common.Delete("/:id/testResults")
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
   async disconnectTestResults(
     @common.Param() params: DiagnosticCenterWhereUniqueInput,
     @common.Body() body: TestResultWhereUniqueInput[]
@@ -252,8 +326,14 @@ export class DiagnosticCenterControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/appointments")
   @ApiNestedQuery(AppointmentFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Appointment",
+    action: "read",
+    possession: "any",
+  })
   async findAppointments(
     @common.Req() request: Request,
     @common.Param() params: DiagnosticCenterWhereUniqueInput
@@ -291,6 +371,11 @@ export class DiagnosticCenterControllerBase {
   }
 
   @common.Post("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
   async connectAppointments(
     @common.Param() params: DiagnosticCenterWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
@@ -308,6 +393,11 @@ export class DiagnosticCenterControllerBase {
   }
 
   @common.Patch("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
   async updateAppointments(
     @common.Param() params: DiagnosticCenterWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
@@ -325,6 +415,11 @@ export class DiagnosticCenterControllerBase {
   }
 
   @common.Delete("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
   async disconnectAppointments(
     @common.Param() params: DiagnosticCenterWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]

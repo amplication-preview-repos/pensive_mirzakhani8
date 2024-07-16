@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { UserService } from "../user.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { UserCreateInput } from "./UserCreateInput";
 import { User } from "./User";
 import { UserFindManyArgs } from "./UserFindManyArgs";
@@ -32,10 +36,24 @@ import { TestResultFindManyArgs } from "../../testResult/base/TestResultFindMany
 import { TestResult } from "../../testResult/base/TestResult";
 import { TestResultWhereUniqueInput } from "../../testResult/base/TestResultWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class UserControllerBase {
-  constructor(protected readonly service: UserService) {}
+  constructor(
+    protected readonly service: UserService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: User })
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createUser(@common.Body() data: UserCreateInput): Promise<User> {
     return await this.service.createUser({
       data: data,
@@ -52,9 +70,18 @@ export class UserControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [User] })
   @ApiNestedQuery(UserFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async users(@common.Req() request: Request): Promise<User[]> {
     const args = plainToClass(UserFindManyArgs, request.query);
     return this.service.users({
@@ -72,9 +99,18 @@ export class UserControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: User })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async user(
     @common.Param() params: UserWhereUniqueInput
   ): Promise<User | null> {
@@ -99,9 +135,18 @@ export class UserControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: User })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateUser(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() data: UserUpdateInput
@@ -134,6 +179,14 @@ export class UserControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: User })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteUser(
     @common.Param() params: UserWhereUniqueInput
   ): Promise<User | null> {
@@ -161,8 +214,14 @@ export class UserControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/payments")
   @ApiNestedQuery(PaymentFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Payment",
+    action: "read",
+    possession: "any",
+  })
   async findPayments(
     @common.Req() request: Request,
     @common.Param() params: UserWhereUniqueInput
@@ -200,6 +259,11 @@ export class UserControllerBase {
   }
 
   @common.Post("/:id/payments")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async connectPayments(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: PaymentWhereUniqueInput[]
@@ -217,6 +281,11 @@ export class UserControllerBase {
   }
 
   @common.Patch("/:id/payments")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async updatePayments(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: PaymentWhereUniqueInput[]
@@ -234,6 +303,11 @@ export class UserControllerBase {
   }
 
   @common.Delete("/:id/payments")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async disconnectPayments(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: PaymentWhereUniqueInput[]
@@ -250,8 +324,14 @@ export class UserControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/appointments")
   @ApiNestedQuery(AppointmentFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Appointment",
+    action: "read",
+    possession: "any",
+  })
   async findAppointments(
     @common.Req() request: Request,
     @common.Param() params: UserWhereUniqueInput
@@ -289,6 +369,11 @@ export class UserControllerBase {
   }
 
   @common.Post("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async connectAppointments(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
@@ -306,6 +391,11 @@ export class UserControllerBase {
   }
 
   @common.Patch("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async updateAppointments(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
@@ -323,6 +413,11 @@ export class UserControllerBase {
   }
 
   @common.Delete("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async disconnectAppointments(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
@@ -339,8 +434,14 @@ export class UserControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/testResults")
   @ApiNestedQuery(TestResultFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "TestResult",
+    action: "read",
+    possession: "any",
+  })
   async findTestResults(
     @common.Req() request: Request,
     @common.Param() params: UserWhereUniqueInput
@@ -379,6 +480,11 @@ export class UserControllerBase {
   }
 
   @common.Post("/:id/testResults")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async connectTestResults(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: TestResultWhereUniqueInput[]
@@ -396,6 +502,11 @@ export class UserControllerBase {
   }
 
   @common.Patch("/:id/testResults")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async updateTestResults(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: TestResultWhereUniqueInput[]
@@ -413,6 +524,11 @@ export class UserControllerBase {
   }
 
   @common.Delete("/:id/testResults")
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "update",
+    possession: "any",
+  })
   async disconnectTestResults(
     @common.Param() params: UserWhereUniqueInput,
     @common.Body() body: TestResultWhereUniqueInput[]

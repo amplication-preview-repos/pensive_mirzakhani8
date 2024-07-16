@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { DiagnosticCenter } from "./DiagnosticCenter";
 import { DiagnosticCenterCountArgs } from "./DiagnosticCenterCountArgs";
 import { DiagnosticCenterFindManyArgs } from "./DiagnosticCenterFindManyArgs";
@@ -25,10 +31,20 @@ import { TestResult } from "../../testResult/base/TestResult";
 import { AppointmentFindManyArgs } from "../../appointment/base/AppointmentFindManyArgs";
 import { Appointment } from "../../appointment/base/Appointment";
 import { DiagnosticCenterService } from "../diagnosticCenter.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => DiagnosticCenter)
 export class DiagnosticCenterResolverBase {
-  constructor(protected readonly service: DiagnosticCenterService) {}
+  constructor(
+    protected readonly service: DiagnosticCenterService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "read",
+    possession: "any",
+  })
   async _diagnosticCentersMeta(
     @graphql.Args() args: DiagnosticCenterCountArgs
   ): Promise<MetaQueryPayload> {
@@ -38,14 +54,26 @@ export class DiagnosticCenterResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [DiagnosticCenter])
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "read",
+    possession: "any",
+  })
   async diagnosticCenters(
     @graphql.Args() args: DiagnosticCenterFindManyArgs
   ): Promise<DiagnosticCenter[]> {
     return this.service.diagnosticCenters(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => DiagnosticCenter, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "read",
+    possession: "own",
+  })
   async diagnosticCenter(
     @graphql.Args() args: DiagnosticCenterFindUniqueArgs
   ): Promise<DiagnosticCenter | null> {
@@ -56,7 +84,13 @@ export class DiagnosticCenterResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => DiagnosticCenter)
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "create",
+    possession: "any",
+  })
   async createDiagnosticCenter(
     @graphql.Args() args: CreateDiagnosticCenterArgs
   ): Promise<DiagnosticCenter> {
@@ -66,7 +100,13 @@ export class DiagnosticCenterResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => DiagnosticCenter)
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "update",
+    possession: "any",
+  })
   async updateDiagnosticCenter(
     @graphql.Args() args: UpdateDiagnosticCenterArgs
   ): Promise<DiagnosticCenter | null> {
@@ -86,6 +126,11 @@ export class DiagnosticCenterResolverBase {
   }
 
   @graphql.Mutation(() => DiagnosticCenter)
+  @nestAccessControl.UseRoles({
+    resource: "DiagnosticCenter",
+    action: "delete",
+    possession: "any",
+  })
   async deleteDiagnosticCenter(
     @graphql.Args() args: DeleteDiagnosticCenterArgs
   ): Promise<DiagnosticCenter | null> {
@@ -101,7 +146,13 @@ export class DiagnosticCenterResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [TestResult], { name: "testResults" })
+  @nestAccessControl.UseRoles({
+    resource: "TestResult",
+    action: "read",
+    possession: "any",
+  })
   async findTestResults(
     @graphql.Parent() parent: DiagnosticCenter,
     @graphql.Args() args: TestResultFindManyArgs
@@ -115,7 +166,13 @@ export class DiagnosticCenterResolverBase {
     return results;
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [Appointment], { name: "appointments" })
+  @nestAccessControl.UseRoles({
+    resource: "Appointment",
+    action: "read",
+    possession: "any",
+  })
   async findAppointments(
     @graphql.Parent() parent: DiagnosticCenter,
     @graphql.Args() args: AppointmentFindManyArgs
